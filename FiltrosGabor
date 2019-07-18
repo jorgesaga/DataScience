@@ -1,0 +1,241 @@
+library(MASS)
+library(neuralnet)
+library(caret)
+library(e1071)
+library(ada)
+library(rpart)
+library(jpeg)
+library(rtiff)
+library(imager)
+library(OpenImageR)
+library(wvtool)
+library(irlba)
+library(ClusterR)
+library(caret)
+library(caTools)
+library(randomForest)
+
+#Guardando los datos
+Face<-array(data = 0,dim = c(180,256,256,3))
+ficheros <- dir("img_expression/")
+for(k in 1:180){
+  Face[k,,,1]<-rtiff::readTiff(fn =paste("img_expression/",ficheros[k+2],sep = ""),pixmap = F )$r
+  Face[k,,,2]<-rtiff::readTiff(fn =paste("img_expression/",ficheros[k+2],sep = ""),pixmap = F )$g
+  Face[k,,,3]<-rtiff::readTiff(fn =paste("img_expression/",ficheros[k+2],sep = ""),pixmap = F )$b
+}
+
+
+#Matriz de las imagenes
+Face2<-matrix(0,nrow = 65536,ncol = 180)
+#Volviendo vector columna a cada una de las imagenes
+for(m in 1:180){
+  Face3<-as.matrix(Face[m,1,,1])
+  for(l in 2:256){
+    Face3<-rbind(Face3,as.matrix(Face[m,l,,1]))
+  }
+  Face2[,m]<-Face3  #datos finales (filas: pixeles, columnas:caras)
+}
+
+
+################
+#Analizando una imagen
+init_gb<-GaborFeatureExtract$new()
+gb_im<-init_gb$gabor_filter_bank(scales = 5,orientations = 8,
+                                 gabor_rows = 39,gabor_columns = 39,plot_data = TRUE)
+plt_f<-init_gb$plot_gabor(real_matrices = gb_im$gabor_real,margin_btw_plots = 0.65,thresholding = FALSE)
+
+
+plt_im_thresh<-init_gb$plot_gabor(real_matrices = gb_im$gabor_features_real,
+                                  margin_btw_plots = 0.65,thresholding = TRUE)
+
+
+im<-readImage("img_expression/KA.AN3.41.tiff")*255
+gb_im2<-init_gb$gabor_feature_extraction(image = im,scales = 5,orientations = 8,
+                                         downsample_gabor = FALSE,downsample_rows = NULL,
+                                         downsample_cols = NULL,gabor_rows = 39,gabor_columns = 39,
+                                         plot_data = TRUE,normalize_features = FALSE,threads = 3)
+plt_im<-init_gb$plot_gabor(real_matrices = gb_im2$gabor_features_real,margin_btw_plots = 0.65,thresholding = TRUE)
+
+###################
+#total de imagenes
+mnist<-(t(Face2))
+mnist = as.matrix(mnist)
+
+dat <- init_gb$gabor_feature_engine(img_data = mnist, img_nrow = 256, img_ncol = 256,
+                                   scales = 5, orientations = 8, gabor_rows = 39,
+                                   gabor_columns = 39, downsample_gabor = FALSE,
+                                   downsample_rows = NULL, downsample_cols = NULL,
+                                   normalize_features = FALSE, threads = 3, verbose = TRUE)
+
+
+#Reduciendo dimension de las magnitudes
+CompMag<-prcomp(dat$magnitude)
+pve2 <- 100*CompMag$sdev^2/sum(CompMag$sdev^2)
+
+#porcentaje de varianza explicada
+plot(pve2,  type="o", ylab="PVE", xlab="Componente Principal", col="blue3")
+plot(cumsum(pve2), type="o", ylab="PVE Acumulada", xlab="Componente Principal ", col="brown3",main="Expresiones")
+cumsum((CompMag$sdev)^2)/sum((CompMag$sdev)^2)*100
+
+#utilizar 40 componentes principales, se acumula 90% de la varianza total
+categorias<-read.table("img_expression/class_img_exp.dat",header = T)
+emocion<-as.numeric(categorias$semantic.expression)
+emocion<-as.factor(emocion)
+colnames(emocion)<-"emocion"
+
+Caras<-data.frame(CompMag$x[,1:40],emocion)
+
+FormulaCaras2<-as.formula(paste("emocion","~",paste(colnames(Caras[,1:40]),collapse = " + ")))
+FormulaCaras3<-as.formula(paste("emocion","~",paste(colnames(Caras3)[1:100],collapse = " + ")))
+
+folds<-createFolds(Caras$emocion,k=10)
+
+#Aplicando SVM
+SVMCaras<-lapply(folds, function(x){
+  training_fold<-Caras[-x,]
+  test_fold<-Caras[x,]
+  clasificador<-svm(FormulaCaras2,data = training_fold)
+  y_pred<-predict(clasificador,newdata=test_fold)
+  cm<-table(test_fold$emocion,y_pred)
+  precision<-(sum(diag(cm))/sum(cm))*100
+  #precision<-(1-(sum(cm)-sum(diag(cm)))/sum(cm))*100
+  #precision<-(cm[1,1]+cm[2,2])/(cm[1,1]+cm[2,2]+cm[1,2]+cm[2,1])
+  return(precision)
+})
+
+precisionSVMCaras<-mean(as.numeric(SVMCaras))
+
+#Aplicando Random Forest
+RFCaras<-lapply(folds, function(x){
+  training_fold<-Caras[-x,]
+  test_fold<-Caras[x,]
+  clasificador<-randomForest(FormulaCaras2,data = training_fold)
+  y_pred<-predict(clasificador,newdata=test_fold)
+  cm<-table(test_fold$emocion,y_pred)
+  precision<-(sum(diag(cm))/sum(cm))*100
+  return(precision)
+})
+precisionRFCaras<-mean(as.numeric(RFCaras))
+
+#Aplicando Arboles de Clasificacion
+ACCaras<-lapply(folds, function(x){
+  training_fold<-Caras[-x,]
+  test_fold<-Caras[x,]
+  clasificador<-rpart(FormulaCaras2,data = training_fold)
+  y_pred<-PredAC(AC = clasificador,datos = test_fold)
+  cm<-table(test_fold$emocion,y_pred)
+  precision<-(sum(diag(cm))/sum(cm))*100
+  return(precision)
+})
+precisionACCaras<-mean(as.numeric(ACCaras))
+
+#Aplicando AdaBoost
+ABCaras<-lapply(folds, function(x){
+  training_fold<-Caras[-x,]
+  test_fold<-Caras[x,]
+  clasificador<-ADAMClass(x = training_fold[,1:40],y = as.numeric(training_fold$emocion),M = 15,maxprof = 10)
+  y_pred<-PredADAMultC(AC = clasificador,x = test_fold[,1:40],y = test_fold[,41],verbose = T)
+  cm<-table(as.numeric(test_fold$emocion),y_pred$class)
+  precision<-(sum(diag(cm))/sum(cm))*100
+  return(precision)
+})
+precisionABCaras<-mean(as.numeric(ABCaras))
+
+#Aplicando Redes Neuronales
+RNCaras<-lapply(folds, function(x){
+  training_fold<-Caras[-x,]
+  test_fold<-Caras[x,]
+  clasificador<-neuralnet(formula = FormulaCaras2,data = training_fold,hidden = 6,threshold = 0.2,stepmax = 1e6,linear.output = F)
+  y_pred<-neuralnet::compute(x = clasificador,covariate = as.data.frame(test_fold[,-41]))
+  cm<-table(as.numeric(sort(test_fold$emocion)),DecodRN(x = y_pred$net.result))
+  precision<-(sum(diag(cm))/sum(cm))*100
+  return(precision)
+})
+precisionRNCaras<-mean(as.numeric(RNCaras))
+
+
+####################################################################################################
+#Comparacion con Metodo EigenFaces
+
+#Realizando Componentes principales sobre la matriz obtenida
+CompCaras<-prcomp(t(Face2))
+#Calcualndo la varianza explicada acumulada
+pve <- 100*CompCaras$sdev^2/sum(CompCaras$sdev^2)
+#porcentaje de varianza explicada
+plot(pve,  type="o", ylab="PVE", xlab="Componente Principal", col="blue3")
+plot(cumsum(pve), type="o", ylab="PVE Acumulada", xlab="Componente Principal ", col="brown3",main="Expresiones")
+cumsum((CompCaras$sdev)^2)/sum((CompCaras$sdev)^2)*100
+categorias<-read.table("img_expression/class_img_exp.dat",header = T)
+emocion<-as.numeric(categorias$semantic.expression)
+emocion<-as.factor(emocion)
+colnames(emocion)<-"emocion"
+
+FormulaCaras<-as.formula(paste("emocion","~",paste(colnames(CompCaras$x)[1:39],collapse = " + ")))
+
+Caras2<-data.frame(CompCaras$x[,1:39],emocion) #Datos Finales
+
+#Implementando validacion cruzada
+folds<-createFolds(Caras2$emocion,k=10)
+
+#Aplicando SVM
+SVMCaras2<-lapply(folds, function(x){
+  training_fold<-Caras2[-x,]
+  test_fold<-Caras2[x,]
+  clasificador<-svm(FormulaCaras,data = training_fold)
+  y_pred<-predict(clasificador,newdata=test_fold)
+  cm<-table(test_fold$emocion,y_pred)
+  precision<-(sum(diag(cm))/sum(cm))*100
+  #precision<-(1-(sum(cm)-sum(diag(cm)))/sum(cm))*100
+  #precision<-(cm[1,1]+cm[2,2])/(cm[1,1]+cm[2,2]+cm[1,2]+cm[2,1])
+  return(precision)
+})
+
+precisionSVMCaras2<-mean(as.numeric(SVMCaras2))
+
+#Aplicando Random Forest
+RFCaras2<-lapply(folds, function(x){
+  training_fold<-Caras2[-x,]
+  test_fold<-Caras2[x,]
+  clasificador<-randomForest(FormulaCaras,data = training_fold)
+  y_pred<-predict(clasificador,newdata=test_fold)
+  cm<-table(test_fold$emocion,y_pred)
+  precision<-(sum(diag(cm))/sum(cm))*100
+  return(precision)
+})
+precisionRFCaras2<-mean(as.numeric(RFCaras2))
+
+#Aplicando Arboles de Clasificacion
+ACCaras2<-lapply(folds, function(x){
+  training_fold<-Caras2[-x,]
+  test_fold<-Caras2[x,]
+  clasificador<-rpart(FormulaCaras,data = training_fold)
+  y_pred<-PredAC(AC = clasificador,datos = test_fold)
+  cm<-table(test_fold$emocion,y_pred)
+  precision<-(sum(diag(cm))/sum(cm))*100
+  return(precision)
+})
+precisionACCaras2<-mean(as.numeric(ACCaras2))
+
+#Aplicando AdaBoost
+ABCaras2<-lapply(folds, function(x){
+  training_fold<-Caras2[-x,]
+  test_fold<-Caras2[x,]
+  clasificador<-ADAMClass(x = training_fold[,1:39],y = as.numeric(training_fold$emocion),M = 15,maxprof = 10)
+  y_pred<-PredADAMultC(AC = clasificador,x = test_fold[,1:39],y = test_fold[,40],verbose = T)
+  cm<-table(as.numeric(test_fold$emocion),y_pred$class)
+  precision<-(sum(diag(cm))/sum(cm))*100
+  return(precision)
+})
+precisionABCaras2<-mean(as.numeric(ABCaras2))
+
+#Aplicando Redes Neuronales
+RNCaras2<-lapply(folds, function(x){
+  training_fold<-Caras2[-x,]
+  test_fold<-Caras2[x,]
+  clasificador<-neuralnet(formula = FormulaCaras,data = training_fold,hidden = 6,threshold = 0.2,stepmax = 1e6,linear.output = F)
+  y_pred<-neuralnet::compute(x = clasificador,covariate = as.data.frame(test_fold[,-40]))
+  cm<-table(as.numeric(sort(test_fold$emocion)),DecodRN(x = y_pred$net.result))
+  precision<-(sum(diag(cm))/sum(cm))*100
+  return(precision)
+})
+precisionRNCaras2<-mean(as.numeric(RNCaras2))
