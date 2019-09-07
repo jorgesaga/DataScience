@@ -1,0 +1,79 @@
+#Librerias
+import numpy as np
+import math as mt
+from sklearn import preprocessing
+import matplotlib.pyplot as plt
+import seaborn as sns
+from numpy import linalg as LA
+
+#p=10 m=10,000 matrices aleatorias
+
+#Creando Matriz Aleatoria a partir del ensemble ortogonal gaussiano (GOE).
+#Consideramos una matriz de dimensión pxp con elementos i.i.d con entradas normales estandar.
+
+m=range(0,10000)
+mat_GOE=np.zeros((10000,10),dtype=float)
+for i in m:
+  H=np.random.normal(0,np.sqrt(1),(10,10))
+  #Simetrizamos la matriz:
+  H_s=(1/2)*(H+H.T)
+  #Valores propios
+  vp_GOE=LA.eig(H_s)[0]
+  mat_GOE[i-1:]=vp_GOE
+
+#normalizando la matriz 
+GOE=(1/mt.sqrt(10))*mat_GOE
+vpGOE=GOE.flatten()
+plt.hist(vpGOE,density=True)
+
+#Ensemble unitario gaussiano (GUE)
+
+mat_GUE=np.zeros((10000,10),dtype=float)
+for i in m:
+  H2=np.random.normal(0,np.sqrt(1),(10,10))+1.j*np.random.normal(0,np.sqrt(1),(10,10))
+  #Simetrizamos la matriz:
+  H_her=(1/2)*(H2+H2.T)
+  #Valores propios
+  vp_GUE=LA.eigh(H_her)[0]
+  mat_GUE[i-1:]=vp_GUE
+  
+#normalizando la matriz 
+GUE=(1/mt.sqrt(20))*mat_GUE
+vpGUE=GUE.flatten()
+plt.hist(vpGUE,density=True)  
+
+#Ensemble simpletico gaussiano (GSE).
+mat_GSE=np.zeros((10000,20),dtype=float)
+for i in m:
+  X=np.random.normal(0,np.sqrt(1),(10,10))+1.j*np.random.normal(0,np.sqrt(1),(10,10))
+  Y=np.random.normal(0,np.sqrt(1),(10,10))+1.j*np.random.normal(0,np.sqrt(1),(10,10))
+  Z=np.concatenate((X,Y), axis=1)
+  W=np.concatenate((-np.conjugate(Y), np.conjugate(X)), axis=1)
+  
+  H_sc=np.concatenate((Z,W), axis=0)
+  #Simetrizamos la matriz
+  H_sc=(H_sc+H_sc.T.conj())/2
+  vp_GSE=LA.eigh(H_sc)[0]
+  mat_GSE[i-1:]=vp_GSE
+  
+#normalizando la matriz 
+GSE=(1/mt.sqrt(40))*mat_GSE
+vpGSE=GSE.flatten()
+plt.hist(vpGSE,density=True) 
+
+
+#Ley del semicirculo de Wigner
+M=np.linspace(-1.41,1.41,40)
+circ=(1/np.pi)*(np.sqrt(2-M**2))
+
+
+#Graficando densidades
+densidad, ax = plt.subplots()
+
+goe = sns.distplot(vpGOE, hist = False, kde = True,label="GOE")
+gue = sns.distplot(vpGUE, hist = False, kde = True,label="GUE")
+gse = sns.distplot(vpGSE, hist = False, kde = True,label="GSE")
+semcirc=plt.plot(M,circ,label="Semicirculo")
+plt.title("Histograma Ensembles")
+plt.legend(loc='upper right', frameon=False)
+plt.show()
