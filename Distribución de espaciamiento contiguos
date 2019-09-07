@@ -1,0 +1,32 @@
+#Librerias
+import numpy as np
+import math as mt
+from sklearn import preprocessing
+import matplotlib.pyplot as plt
+import seaborn as sns
+from numpy import linalg as LA
+
+#n=100
+S=np.empty(0)
+for i in range(1000):
+  H_ss=np.random.normal(0,np.sqrt(1),(100,100))
+  H_ss=(H_ss+np.transpose(H_ss))/2
+  es,vp=np.linalg.eig(H_ss)
+  esorder=-np.sort(-es)
+  S=np.concatenate((S,esorder[:-1]-esorder[1:]),axis=None)
+
+#Escalamos la matriz de diferencias
+S=S/np.mean(S)
+ 
+
+#Conjetura de Wigner
+WG=np.linspace(0,5,40)
+wigner=(np.pi*WG*0.5)*np.exp(-0.25*np.pi*WG**2)
+
+
+wigner2, ax = plt.subplots()
+esp=plt.hist(S,density=True, bins =50,label="Dist. Espaciamiento") 
+win_100=plt.plot(WG,wigner,label="Conj. Wigner")
+plt.title("Distribución de Espaciamiento Contiguos")
+plt.legend(loc='upper right', frameon=False)
+plt.show()
