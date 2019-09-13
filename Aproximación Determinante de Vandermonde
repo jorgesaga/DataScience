@@ -1,0 +1,70 @@
+#Librerias
+import numpy as np
+import matplotlib.pyplot as plt
+from numpy import linalg as LA
+import math as mt
+import seaborn as sns; sns.set()
+import os
+
+#Matriz simetrica fija de dimension 10x10 con base normal
+n=10
+H=np.random.normal(0,1,(n,n))
+H=(H+H.T)/2
+
+#Obteniendo valores y vectores propios
+valp, vecp=LA.eig(H)
+X=np.diag(valp)
+
+#Dimension matriz jacobiana
+dim_J=int(n*(n+1)/2)
+
+#Matriz jacobiana
+Mat_Jac=np.zeros((dim_J,dim_J))
+
+#Perturbacion
+epsilon=0.0000001
+
+#Contador
+c1=0
+
+#Valores
+val=np.triu(np.ones((n,n),dtype=bool),1)
+val
+#Iteraciones
+
+
+for i in range(0,n):
+  for j in range(i,n):
+    #Matriz de perturbaciones
+    E_ij=np.zeros((n,n))
+    #Colocando unos en los valores de la matriz que se perturbaran
+    E_ij[i,j]=1
+    E_ij[j,i]=1
+    #Matriz simetrica perturabada
+    H_n=H+(epsilon*E_ij)
+    #Valores y vectores propios de la matriz prima
+    valp_p, vecp_p=LA.eig(H_n)
+    X_p=np.diag(valp_p)
+    #Valores propios perturbados
+    dX=(X_p-X)/epsilon
+    #Vectores propios perturbados
+    OdO=(np.dot(vecp.T,(vecp_p-vecp)))/epsilon
+    
+    #Valores de la matriz jacobiana
+    Mat_Jac[0:n,c1]=np.diag(dX)
+    Mat_Jac[n:,c1]=OdO[val]
+    c1=c1+1
+    
+#Calculando el determinante
+detJac=1/np.abs(np.linalg.det(Mat_Jac))
+
+#Calculando el determinante de vandermonde
+detVan=np.abs(np.linalg.det(np.vander(valp)))
+
+#Error relativo
+ER=np.abs(detVan-detJac)/np.abs(detVan)
+
+#Resultados
+print("Determinante Matriz Jacobiana:",detJac)
+print("Determinante de Vandermonde:",detVan)
+print("Error relativo:",ER)
