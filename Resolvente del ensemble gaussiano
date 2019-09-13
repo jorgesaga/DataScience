@@ -1,0 +1,66 @@
+#Librerias
+library(elliptic)
+
+#Funcion G (signos)
+G<-function(z,signo="+"){
+  if(signo=="+"){
+    z+sqrt(z^2-2)
+  }
+  else{
+    z-sqrt(z^2-2)
+  }
+}
+
+#Resolvente
+resolvente<-function(x){
+  res<-sqrt(2-x^2)/(pi*(z[i]-x))
+  return(res)
+}
+
+#Intervalo (0,raiz(2))
+#Generando valores de z
+#n=10
+set.seed(1)
+re<-runif(10,0, sqrt(2)) #Parte real
+im<-runif(10,0.00001,0.0001) #Parte imaginaria
+z<-complex(real=re, imaginary = im)
+
+#Vector para guardar el valor de las integrales
+Integral<-vector("numeric",length(z))
+ValG<-vector("numeric",length(z))
+#Proceso de Integracion
+for(i in 1:length(z)){
+  Integral[i]<-myintegrate(resolvente, lower = -1*sqrt(2), upper = sqrt(2))
+  ValG[i]<-G(z[i],"-")
+}
+
+#Calculando error relativo
+Error<-abs(ValG-Integral)/ValG
+#Parte real
+mean(Re(Error))*100
+#Parte imaginaria
+mean(Im(Error))*100
+
+#Intervalo (-raiz(2),0)
+#Generando valores de z
+#n=10
+set.seed(9999)
+re2<-runif(10,-sqrt(2),0) #Parte real
+im2<-runif(10,0.00001,0.0001) #Parte imaginaria
+z2<-complex(real=re2, imaginary = im2)
+
+#Vector para guardar el valor de las integrales
+Integral2<-vector("numeric",length(z2))
+ValG2<-vector("numeric",length(z2))
+#Proceso de Integracion
+for(i in 1:length(z2)){
+  Integral2[i]<-myintegrate(resolvente, lower = -1*sqrt(2), upper = sqrt(2))
+  ValG2[i]<-G(z[i],"+")
+}
+
+#Calculando error relativo
+Error2<-abs(ValG2-Integral2)/ValG2
+#Parte real
+mean(Re(Error2))*100
+#Parte imaginaria
+mean(Im(Error2))*100
