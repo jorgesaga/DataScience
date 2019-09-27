@@ -1,0 +1,117 @@
+# Ejercicio 2 Muestra Variables Financieras
+
+#Librerias
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sea 
+import pandas as pd
+import math as mt
+!pip install yfinance
+import yfinance as yf 
+
+data = yf.download('ZTS ZION YUM XYL XRX XRAY XOM XLNX XEL XEC WYNN WY WMB WM WLTW WHR WFC WELL WEC WDC WCG WBA WAT VNO VMC VLO VIAB VFC VAR V UTX USB URI MMM ABT ABMD'
+                   ,'2015-06-01','2017-06-01')
+
+at_close = data.Close    #save just the close price #1035 x 33
+at_open = data.Open    #save just the open price
+
+#Calculamos los retornos
+at_open.iloc[:-1,:] =np.diff(np.log(at_open.iloc[:,:]), axis =0)
+Retornos = at_open
+
+corte = 100 
+mitad_1 = Retornos[:corte] 
+mitad_2 = Retornos[corte :corte*2]
+
+mitad_1t =mitad_1.T #transponemos
+mitad_2t =mitad_2.T
+
+#RIESGOS "SUCIO"
+
+n = mitad_1.shape[0] 
+p = mitad_1.shape[1]
+    
+#Retornos esperados
+mu = np.ones(p)
+#Matriz de covarianzas
+Sigma = np.diag(mu)    
+
+S = np.cov(mitad_1t)
+
+G = np.linspace(1, 100, num=100)
+
+#RISK IN
+S_inv = np.linalg.inv(S)
+
+risk_in_dirty=(G**2)/np.dot(np.dot(mu.T,S_inv),mu)
+
+
+#RISK OUT
+n2 = mitad_2.shape[0] 
+p2 = mitad_2.shape[1]
+mu = Retornos.mean(0) 
+Sigma_1 = np.cov(mitad_2t)   
+S = np.cov(mitad_1t)
+G = np.linspace(1, 100, num=100) 
+numerador = (G**2)*(np.dot(np.dot(np.dot(np.dot(mu.T,S_inv),Sigma_1),S_inv),mu))
+denominador = (np.dot(np.dot(mu.T,S_inv),mu)**2)
+risk_out_dirty=numerador/denominador
+
+#RIESGOS "LIMPIO"
+
+#RISK IN
+
+Q = p/n 
+l_max = (1+mt.sqrt(Q))**2 #Lambda máximo
+l_min = (1-mt.sqrt(Q))**2 #Lambda mínimo
+
+eigval, eigvec = np.linalg.eig(S) #Eigenvalores
+
+num_eigval = eigval.shape[0] #Número total de eigenvalores
+num_eig_mlam = eigval[eigval>l_max].shape[0] #Número de eigenval mayores a l_max
+
+unos = np.ones(num_eigval-num_eig_mlam) #reemplazo para eigenval menores a cota superior
+
+cte = np.mean(eigval[num_eig_mlam:]) #Versión that works
+eigval_clean = np.copy(eigval)
+eigval_clean[num_eig_mlam:] = unos*cte #Eigenvalores "limpios"
+
+S_tilde = np.dot(np.dot(eigvec,np.diag(eigval_clean)),eigvec.T) #La S reconstruida    
+S_tilde_inv = np.linalg.inv(S_tilde)
+
+risk_in_clean=(G**2)/np.dot(np.dot(mu.T,S_tilde_inv),mu)
+
+
+#RISK OUT
+
+Q = p2/n2 
+l_max = (1+mt.sqrt(Q))**2 #Lambda máximo
+l_min = (1-mt.sqrt(Q))**2 #Lamda mínimo
+
+S2 = np.cov(mitad_2t)
+eigval1, eigvec1 = np.linalg.eig(S2) #Eigenvalores
+
+num_eigval1 = eigval1.shape[0] #Número total de eigenvalores
+num_eig_mlam1 = eigval1[eigval>l_max].shape[0] #Número de eigenval mayores a l_max
+
+unos1 = np.ones(num_eigval1-num_eig_mlam1) #reemplazo para eigenval menores a cota superior
+
+cte1 = np.mean(eigval1[num_eig_mlam1:])#Versión that works    
+eigval_clean_o = np.copy(eigval1)
+eigval_clean_o[num_eig_mlam1:] = unos1*cte1 #Eigenvalores limpios
+
+S_tilde_o = np.dot(np.dot(eigvec,np.diag(eigval_clean_o)),eigvec.T) #S reconstruida
+
+S_tilde_inv_o = np.linalg.inv(S_tilde_o)
+
+numerador_c = (G**2)*(mu.T@S_tilde_inv@S_tilde_o@S_tilde_inv@mu)
+denominador_c = (mu.T@S_tilde_inv@mu)**2
+    
+risk_out_clean=numerador_c/denominador_c
+
+
+plt_risk_In_dirty=plt.plot(risk_in_dirty,G,"orange", label='In Dirty')
+plt_risk_In_clean=plt.plot(risk_in_clean,G,"blue", label='In Clean')
+plt_risk_out_dirty=plt.plot(risk_out_dirty,G,"red", label='Out Dirty')
+plt_risk_out_clean=plt.plot(risk_out_clean,G,"green", label='Out Clean')
+plt.legend(loc='lower right')
