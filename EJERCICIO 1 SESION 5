@@ -1,0 +1,50 @@
+#Ejercicio 1 FRONTERA OPTIMA
+
+#Librerias
+import numpy as np
+import matplotlib.pyplot as plt
+from numpy import linalg as LA
+import math as mt
+import seaborn as sns; sns.set()
+import os
+
+#Valores dados
+p=100
+n=200
+mu=np.ones(p)
+Sigma=np.diag(mu)
+
+#Generando valores entre 0 y 100
+G=np.linspace(0,100,50)
+
+#Risk_true
+Risk_t=(G**2)/(np.dot(mu.T,mu))
+Risk_true=plt.plot(Risk_t,G,label="True")
+
+#Risk_in
+D=np.diag(np.repeat(0.2,p))
+Z=np.random.normal(0,np.sqrt(1),(p,n))
+X=np.dot(D,Z)
+S=np.corrcoef(X)
+#S=(1/n)*np.dot(X,X.T)
+S_1=np.linalg.inv(S)
+denom1=np.dot(np.dot(mu.T,S_1),mu.T)
+Risk_in=(G**2)/denom1
+Risk_In=plt.plot(Risk_in,G,label="In")
+
+#Risk_out
+num1=np.dot(np.dot(np.dot(np.dot(mu.T,S_1),Sigma),S_1),mu)
+Risk_out=(G**2)*(num1)/(denom1**2)
+Risk_Out=plt.plot(Risk_out,G,label="Out")
+
+plt.legend()
+
+fronteras, ax = plt.subplots()
+Risk_true=plt.plot(Risk_t,G,label="True")
+Risk_In=plt.plot(Risk_in,G,label="In")
+Risk_Out=plt.plot(Risk_out,G,label="Out")
+plt.title("Frontera Óptima")
+plt.legend(loc='lower right', frameon=False)
+plt.show()
+ 
+fronteras.savefig("fronteras.png") 
