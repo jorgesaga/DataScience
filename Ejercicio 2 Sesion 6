@@ -1,0 +1,90 @@
+#Ejercicio 2
+#a)
+
+library(RMTstat)
+#Numero de variables
+P<-4
+
+#Observaciones totales
+N<-48
+
+#Numero de poblaciones
+k<-6
+
+#Parametros de la distribucion de teta (p,N-k,k-1)
+M<-N-k
+n<-k-1
+
+#Valores para calcular la media y varianza
+D<-2*asin(sqrt((max(P,n)-0.5)/(M+n-1)))
+Y<-2*asin(sqrt((min(P,n)-0.5)/(M+n-1)))
+
+#Media y varianza
+mu<-2*log(tan((Y+D)/2))
+c<-sin(Y)*sin(D)*sin(Y+D)^2  
+Sigma<-((16/47^2)*(1/c))^(1/3)
+
+#Estadistico
+f1_05<-qtw(0.95, beta=1, log = FALSE)
+teta_05<-exp(mu+f1_05*Sigma)/(1+exp(mu+f1_05*Sigma))
+
+#Resultados
+mu
+Sigma
+f1_05
+teta_05
+
+#b)
+
+library(heplots)
+library(RMTstat)
+
+data(RootStock)
+
+#Quitando 4 observaciones de cada grupo
+g1<-sample(x = 1:8,size = 4,replace = F)
+g2<-sample(x = 9:16,size = 4,replace = F)
+g3<-sample(x = 17:24,size = 4,replace = F)
+g4<-sample(x = 25:32,size = 4,replace = F)
+g5<-sample(x = 33:40,size = 4,replace = F)
+g6<-sample(x = 41:48,size = 4,replace = F)
+
+#Datos
+roots <- RootStock[c(g1,g2,g3,g4,g5,g6),]
+
+#MANOVA
+M1<- manova(cbind(girth4, ext4, girth15, weight15) ~ rootstock, data=roots)
+summary(M1, test="Wilks") 
+#lambda de wilks=0.028475
+#p-valor=2.506e-6, rechazamos H0
+
+#Roy test
+summary(M1, test="Roy") 
+# Est. Roy = 9.0169
+# -valor=2.11e-08, rechazamos H0
+
+#Lambda mas grande = est. de Roy
+9.0169/10.0169 #theta
+
+# Tracy-Widom
+library(RMTstat)
+
+P<-4
+N<-24
+k<-6
+M<-N-k
+n<-k-1
+
+D<-2*asin(sqrt((max(P,n)-0.5)/(M+n-1)))
+Y<-2*asin(sqrt((min(P,n)-0.5)/(M+n-1)))
+mu<-2*log(tan((Y+D)/2))
+c<-sin(Y)*sin(D)*sin(Y+D)^2  
+Sigma<-((16/47^2)*(1/c))^(1/3)
+f1_05<-qtw(0.95, beta=1, log = FALSE)
+teta_05<-exp(mu+f1_05*Sigma)/(1+exp(mu+f1_05*Sigma))
+
+mu
+Sigma
+f1_05
+teta_05
+#Theta = 0.6473873 < 9.0169, rechazamos H0
