@@ -1,0 +1,137 @@
+#Ejercicio 3 
+
+#Librerias
+import numpy as np
+import matplotlib.pyplot as plt
+from numpy import linalg as LA
+
+#Parametros 
+n=100 #Dimension de las matrices GOE y Wishart
+t=150 #Segunda dimension.
+
+#Parametros asociados con matrices Wishart
+c=t/n
+alpha=(1-c)/c
+
+#Pesos relativos
+p1=0.3
+p2=0.5
+p3=0.7
+
+m=range(0,1000) #Numero de matrices a diagonalizar
+#Eigenvalores
+mat_eigen1=np.zeros((1000,n),dtype=float)   
+mat_eigen2=np.zeros((1000,n),dtype=float)   
+mat_eigen3=np.zeros((1000,n),dtype=float)   
+for i in m:
+  #Generando matriz GOE
+  M=np.random.normal(0,np.sqrt(1),(n,n))
+  #Simetrizamos la matriz:
+  M=(1/2)*(M+M.T)
+  #Generando matriz Wishart
+  #H=np.random.normal(0,np.sqrt(1),(n,t))
+  H=np.random.normal(0,np.sqrt(1),(n,t))
+  W=H@H.T
+  
+  H1=(p1*M)/np.sqrt(n)+((1-p1)*W)/n
+  H2=(p2*M)/np.sqrt(n)+((1-p2)*W)/n
+  H3=(p3*M)/np.sqrt(n)+((1-p3)*W)/n
+  #Valores propios
+  vp1=LA.eigh(H1)[0]
+  vp2=LA.eigh(H2)[0]
+  vp3=LA.eigh(H3)[0]
+  mat_eigen1[i:]=vp1
+  mat_eigen2[i:]=vp2
+  mat_eigen3[i:]=vp3
+  
+
+vp_1=mat_eigen1.flatten()
+vp_2=mat_eigen2.flatten()
+vp_3=mat_eigen3.flatten()
+
+#Densidad Analitica
+import sympy as sy
+from sympy import *
+from sympy import symbols
+
+
+Npts = 100;
+x1=np.linspace(-1,4,Npts)
+x2=np.linspace(-1,4,Npts)
+x3=np.linspace(-1,4,Npts)
+
+#Definiendo variables simbolicas
+G, z, a, w = symbols('G z a w')
+
+#Solucion simbolica del resolvente G
+sol= solve(w**2*G/2 + (1-w)*(1+a)/(1-(1-w)*G) + 1/G - z, G)
+
+Alpha=1/2
+
+#Sustituimos para p=0.3
+sol_11 =sol[0]
+sol_11=sol_11.subs(a,Alpha)
+sol_11=sol_11.subs(w,p1)
+sol_12 =sol[1]
+sol_12=sol_12.subs(a,Alpha)
+sol_12=sol_12.subs(w,p1)
+
+#Sustituimos para p=0.5
+sol_21 =sol[0]
+sol_21=sol_21.subs(a,Alpha)
+sol_21=sol_21.subs(w,p2)
+sol_22 =sol[1]
+sol_22=sol_22.subs(a,Alpha)
+sol_22=sol_22.subs(w,p2)
+
+#Sustituimos para p=0.7
+sol_31 =sol[0]
+sol_31=sol_31.subs(a,Alpha)
+sol_31=sol_31.subs(w,p3)
+sol_32 =sol[1]
+sol_32=sol_32.subs(a,Alpha)
+sol_32=sol_32.subs(w,p3)
+
+#Vectores con rangos
+G1=np.empty(Npts)
+G2=np.empty(Npts)
+G3=np.empty(Npts)
+
+for i in range(0,Npts):
+  tmp11 =complex(sol_11.subs(z,x1[i]))
+  tmp12 = complex(sol_12.subs(z,x1[i]))
+  if (tmp11.imag == 0):
+    G1[i]=np.abs(tmp12.imag)/np.pi
+  else:
+    G1[i]=np.abs(tmp11.imag)/np.pi
+    
+for i in range(0,Npts):
+  tmp21 =complex(sol_21.subs(z,x1[i]))
+  tmp22 = complex(sol_22.subs(z,x1[i]))
+  if (tmp21.imag == 0):
+    G2[i]=np.abs(tmp22.imag)/np.pi
+  else:
+    G2[i]=np.abs(tmp21.imag)/np.pi
+    
+for i in range(0,Npts):
+  tmp31 =complex(sol_31.subs(z,x1[i]))
+  tmp32 = complex(sol_32.subs(z,x1[i]))
+  if (tmp31.imag == 0):
+    G3[i]=np.abs(tmp32.imag)/np.pi
+  else:
+    G3[i]=np.abs(tmp31.imag)/np.pi
+    
+    
+#Graficando densidades
+import seaborn as sns
+densidades2, ax = plt.subplots()
+
+P1 = sns.distplot(vp_1, hist = False, kde = True,label="p = 0.3")
+P2 = sns.distplot(vp_2, hist = False, kde = True,label="p = 0.5")
+P3 = sns.distplot(vp_3, hist = False, kde = True,label="p = 0.7")
+P4=plt.plot(x1,G1,linestyle='--',label='p = 0.3')
+P5=plt.plot(x1,G2, linestyle='--',label= 'p = 0.5')
+P6=plt.plot(x1,G3, linestyle='--',label= 'p = 0.7')
+plt.title("Densidad de Valores Propios")
+plt.legend(loc='upper right', frameon=False)
+plt.show()
