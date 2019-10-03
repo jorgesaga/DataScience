@@ -1,0 +1,84 @@
+#Tarea 6 Matrices Aleatorias
+
+#Ejercicio 1
+
+#Modelo Teorico
+#Parametros
+sigmaf<-0.000158
+sigmab<-0.01
+b<-1
+sigmae<-0.0045
+k<-4
+n<-80
+
+(1/n)*(sigmae/(sigmaf*sigmab))^2 #>p
+
+Mat<-matrix(data = 0,nrow = 151,ncol = 5) #Matriz con valores propios teoricos
+for (j in 50:200) {
+  l1<-(sigmaf*j*(b^2*k+sigmab)+sigmae)*(1+(1/n)*(sigmae/(sigmaf*(sigmab+k*b^2))))
+  l2<-sigmae*((1+sqrt(p/n))^2)
+  Mat[j-49,1:5]<-c(l1,l2,l2,l2,l3)
+}
+
+
+#Simulacion
+MatFin<-matrix(data = 0,nrow = 151,ncol = 5)#Matriz con promedio de valores propios simulacion
+Q<-matrix(data = 0,nrow = 151,ncol = 2) #Matriz con cuantiles de valor propio mayor
+#Q2<-matrix(data = 0,nrow = 151,ncol = 5)
+for (p in 50:200) {
+  matVP<-matrix(data = 0,nrow = 100,ncol = 5)
+  for (i in 1:100) {
+    #Matriz L
+    #b=1 var=0.01, k=4
+    k=4
+    n=80
+    L<-matrix(rnorm(n = p*k,mean = 1,sd = sqrt(0.01)), ncol=k) 
+    
+    #Matriz F
+    #var=0.000158
+    matF<-matrix(rnorm(n = n*k,mean = 0,sd = sqrt(0.000158)), ncol=k) 
+    
+    #Matriz Epsilon
+    #var=0.0045
+    E<-matrix(rnorm(n = p*n,mean = 0,sd = sqrt(0.0045)), ncol=n) 
+    
+    #Matriz R
+    R<-L%*%t(matF)+E
+    
+    #Valores propios
+    matVP[i,]<-sort(eigen((1/n)*R%*%t(R))$values,decreasing = T)[1:5]
+    q1<-quantile(x = matVP[,1],probs = 0.25)
+    q2<-quantile(x = matVP[,1],probs = 0.75)
+    
+  }
+  val.prop<-colMeans(matVP)
+  MatFin[p-49,]=val.prop
+  Q[p-49,1]=q1
+  Q[p-49,2]=q2
+}
+
+#Graficas
+#Modelo teorico
+
+plot(50:p,Mat[,1],type = "l",col="blue",ylim = c(0,0.18),main = "Modelo Teórico",ylab = "Eigenvalores",xlab = "Valores en Portafolio")
+lines(50:p, Mat[,2],col="red")
+lines(50:p, Mat[,5],col="brown")
+legend(x = "topleft", legend = c("lambda1", "lambda 2, 3 y 4", "lambda 5"),
+       fill = c("blue", "red","black"),cex = 0.7,bty = "n",pt.cex = 0.5)
+
+#Teorico vs Empirico
+plot(50:p, MatFin[,1],pch=20,col="darkgreen",type = "l",xlim = c(50,200),ylim = c(0,0.15),main = "Modelo Teórico vs Empírico",ylab = "Eigenvalores",xlab = "Valores en Portafolio")
+lines(50:p, MatFin[,2],col="orange")
+lines(50:p, MatFin[,3],col="black")
+lines(50:p, MatFin[,4],col="yellow")
+lines(50:p, MatFin[,5],col="purple")
+
+lines(50:p,Mat[,1],col="blue")
+lines(50:p, Mat[,2],col="red")
+lines(50:p, Mat[,5],col="brown")
+
+
+
+legend(x = "topleft", legend = c("lambda1", "lambda 2","lambda 3", "lambda 4","lambda 5","lambda1 teorica","lambda 2 teorica","lambda 5 teorica"),
+       fill = c("darkgreen", "orange","black","yellow","purple","blue","red","brown"),cex = 0.5,bty = "n",pt.cex = 0.5)
+
